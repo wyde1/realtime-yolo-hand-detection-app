@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YOLO11s Hand Gesture Detector</title>
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/static/favicon-16x16.png">
+    <link rel="icon" href="/favicon.ico">
+    <link rel="manifest" href="/static/site.webmanifest">
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="app-shell">
+        <header class="topbar">
+            <div class="brand">
+                <div class="brand-mark" aria-hidden="true">
+                    <svg viewBox="0 0 28 28" width="22" height="22" fill="none">
+                        <path d="M3 9V5a2 2 0 0 1 2-2h4M19 3h4a2 2 0 0 1 2 2v4M25 19v4a2 2 0 0 1-2 2h-4M9 25H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        <rect x="8.5" y="8.5" width="11" height="11" rx="2.5" stroke="currentColor" stroke-width="1.8"/>
+                        <circle cx="14" cy="14" r="2" fill="currentColor"/>
+                    </svg>
+                </div>
+                <div>
+                    <h1>YOLO11s Hand Gesture Detector</h1>
+                    <p class="subtitle">Real-time finger-number recognition (classes 1&ndash;5) over FastAPI WebSocket &amp; REST</p>
+                </div>
+            </div>
+
+            <div class="telemetry-strip" aria-label="System telemetry">
+                <div class="pill status-pill" id="connection-status" data-state="idle">
+                    <span class="dot" aria-hidden="true"></span>
+                    <span id="connection-status-text">Idle</span>
+                </div>
+                <div class="pill metric-pill">
+                    <span class="pill-label">FPS</span>
+                    <span class="pill-value" id="fps-counter">--</span>
+                </div>
+                <div class="pill metric-pill">
+                    <span class="pill-label">Latency</span>
+                    <span class="pill-value" id="latency-counter">-- ms</span>
+                </div>
+            </div>
+        </header>
+
+        <div class="alert-banner hidden" id="model-warning" role="alert">
+            <strong>Model weights not loaded.</strong>
+            <span id="model-warning-text">Run <code>python scripts/download_weights.py</code> or place <code>best.pt</code> in <code>weights/</code> and restart the server.</span>
+        </div>
+
+        <div class="mode-tabs" role="tablist" aria-label="Detection input mode">
+            <button
+                type="button"
+                class="tab-btn active"
+                id="tab-webcam"
+                role="tab"
+                aria-selected="true"
+                aria-controls="panel-webcam"
+                data-mode="webcam"
+            >
+                Live Webcam
+            </button>
+            <button
+                type="button"
+                class="tab-btn"
+                id="tab-upload"
+                role="tab"
+                aria-selected="false"
+                aria-controls="panel-upload"
+                data-mode="upload"
+            >
+                Upload Image
+            </button>
+        </div>
+
+        <main class="workspace">
+            <section class="stage-card" aria-label="Detection viewport">
+                <div class="stage-header">
+                    <span class="stage-title" id="stage-title">Live WebSocket Feed</span>
+                    <span class="stage-meta" id="stage-meta">640 &times; 480 &middot; WS /ws</span>
+                </div>
+
+                <!-- Live Webcam Panel -->
+                <div class="viewfinder" id="panel-webcam" role="tabpanel" aria-labelledby="tab-webcam">
+                    <video id="video" autoplay playsinline muted></video>
+                    <canvas id="canvas"></canvas>
+                    <img id="output" alt="Annotated live webcam detection output" class="hidden">
+
+                    <div class="reticle reticle-tl" aria-hidden="true"></div>
+                    <div class="reticle reticle-tr" aria-hidden="true"></div>
+                    <div class="reticle reticle-bl" aria-hidden="true"></div>
+                    <div class="reticle reticle-br" aria-hidden="true"></div>
+
+                    <div class="stage-empty" id="webcam-empty">
+                        <p class="empty-heading">Camera standby</p>
+                        <p class="empty-copy">Click <strong>Start Camera</strong> to stream frames over WebSocket and annotate finger numbers (1&ndash;5) in real time.</p>
+                    </div>
+                </div>
+
+                <!-- Image Upload Panel -->
+                <div class="viewfinder hidden" id="panel-upload" role="tabpanel" aria-labelledby="tab-upload">
+                    <img id="upload-output" alt="Annotated uploaded image output" class="hidden">
+                    <div class="upload-dropzone" id="upload-dropzone">
+                        <input type="file" id="upload-input" accept="image/jpeg,image/png,image/webp" class="sr-only" tabindex="-1" aria-hidden="true">
+                        <p class="empty-heading">Drop a hand image here or browse</p>
+                        <p class="empty-copy">Supports JPEG, PNG, or WebP (max 10 MB). Runs via <code>POST /detect</code> &amp; <code>POST /detect/json</code>.</p>
+                        <button type="button" class="btn btn-primary" id="upload-browse-btn">Choose Image</button>
+                    </div>
+                </div>
+
+                <div class="inline-error hidden" id="inline-error" role="alert"></div>
+            </section>
+
+            <aside class="inspector-column">
+                <!-- Signature Element: Detected Digit Readout -->
+                <section class="card readout-card" aria-label="Detected hand gesture readout">
+                    <div class="card-header">
+                        <h2>Detected Gesture</h2>
+                        <span class="badge" id="model-badge">Checking model&hellip;</span>
+                    </div>
+
+                    <div class="digit-display" id="digit-display">
+                        <div class="digit-empty" id="digit-empty">
+                            <span class="digit-placeholder">&mdash;</span>
+                            <span class="digit-caption">Awaiting frame</span>
+                        </div>
+                        <div class="detection-list hidden" id="detection-list"></div>
+                    </div>
+                </section>
+
+                <!-- Controls Card -->
+                <section class="card controls-card" aria-label="Inference controls">
+                    <div class="card-header">
+                        <h2>Controls</h2>
+                        <span class="endpoint-tag" id="endpoint-tag">WS /ws</span>
+                    </div>
+
+                    <!-- Webcam Actions -->
+                    <div class="action-row" id="webcam-actions">
+                        <button type="button" class="btn btn-primary" id="start-btn">Start Camera</button>
+                        <button type="button" class="btn btn-danger" id="stop-btn" disabled>Stop Camera</button>
+                    </div>
+
+                    <!-- Upload Actions -->
+                    <div class="action-row hidden" id="upload-actions">
+                        <button type="button" class="btn btn-primary" id="upload-trigger-btn">Select Image</button>
+                        <button type="button" class="btn btn-secondary" id="upload-rerun-btn" disabled>Re-run</button>
+                    </div>
+
+                    <div class="control-group">
+                        <div class="control-label-row">
+                            <label for="confidence-slider">Confidence threshold</label>
+                            <output id="confidence-value" for="confidence-slider">0.45</output>
+                        </div>
+                        <input type="range" id="confidence-slider" min="0.05" max="0.95" step="0.05" value="0.45">
+                    </div>
+
+                    <div id="webcam-only-controls">
+                        <div class="control-group">
+                            <div class="control-label-row">
+                                <label for="quality-slider">JPEG stream quality</label>
+                                <output id="quality-value" for="quality-slider">75%</output>
+                            </div>
+                            <input type="range" id="quality-slider" min="20" max="95" step="5" value="75">
+                        </div>
+
+                        <div class="control-grid">
+                            <div class="control-group">
+                                <label for="resolution-select">Resolution</label>
+                                <select id="resolution-select">
+                                    <option value="320x240">320 &times; 240</option>
+                                    <option value="480x360">480 &times; 360</option>
+                                    <option value="640x480" selected>640 &times; 480</option>
+                                </select>
+                            </div>
+
+                            <div class="control-group">
+                                <label for="fps-limit">FPS cap</label>
+                                <select id="fps-limit">
+                                    <option value="0">Unlimited</option>
+                                    <option value="5">5 FPS</option>
+                                    <option value="10" selected>10 FPS</option>
+                                    <option value="15">15 FPS</option>
+                                    <option value="20">20 FPS</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="api-footer">
+                        <a href="/docs" target="_blank" rel="noopener noreferrer">OpenAPI Docs</a>
+                        <span aria-hidden="true">&middot;</span>
+                        <a href="/health" target="_blank" rel="noopener noreferrer">Health JSON</a>
+                    </div>
+                </section>
+            </aside>
+        </main>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
