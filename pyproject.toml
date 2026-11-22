@@ -3,7 +3,7 @@ name = "realtime-yolo-hand-detection-app"
 version = "1.0.0"
 description = "End-to-end real-time hand finger-number (1-5) detection using YOLO11s, FastAPI REST/WebSocket, Web UI, Streamlit client, and MediaPipe baseline."
 readme = "README.md"
-license = { text = "MIT" }
+license = { text = "AGPL-3.0-only" }
 requires-python = ">=3.10"
 
 [tool.pytest.ini_options]

@@ -3,7 +3,7 @@
 [![Python 3.10–3.12](https://img.shields.io/badge/Python-3.10%E2%80%933.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-REST%20%2B%20WebSocket-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![Ultralytics YOLO11](https://img.shields.io/badge/Ultralytics-YOLO11s-0F62FE)](https://docs.ultralytics.com/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](LICENSE)
 
 An end-to-end computer vision project that takes a **two-stage transfer-learned YOLO11s** hand finger-number detector (classes **`1`–`5`**) from training notebook to real-time inference over **FastAPI REST & WebSockets**, paired with a lightweight browser UI, an optional **Streamlit** webcam client, and a **MediaPipe Hands** rule-based baseline.
 
@@ -246,4 +246,4 @@ pytest -v
 
 - **Stage 1 Dataset**: [Fingers Numbers v1](https://universe.roboflow.com/wyde/fingers-numbers-mobih/dataset/1) on Roboflow Universe — licensed under **CC BY 4.0**.
 - **Stage 2 Dataset**: [1-5 v3](https://universe.roboflow.com/wyde/1-5-y1dwp-muxo0/dataset/3) on Roboflow Universe — licensed under **CC BY 4.0**.
-- **Source Code**: Released under the [MIT License](LICENSE).
+- **Source Code**: Released under the [GNU Affero General Public License v3.0 (AGPL-3.0)](LICENSE) for full compatibility with the `ultralytics` dependency.
